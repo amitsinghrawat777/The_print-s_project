@@ -61,6 +61,19 @@ in `SUPABASE_URL` (the phone uploads straight to storage).
 Optional: install Ghostscript (`gs`) so mixed colour + double-sided jobs print their B&W pages in
 greyscale. Without it those pages print as they are.
 
+## Hosted backend (Supabase)
+
+| | |
+|---|---|
+| Project | `the-prints-project` (`jdawobuijasshdbkwwfr`), region `ap-south-1` (Mumbai) |
+| API URL | `https://jdawobuijasshdbkwwfr.supabase.co` |
+| Migrations | All four files in `supabase/migrations/` are applied |
+
+The hosted project has no demo data. Create the first shop owner in the Supabase dashboard
+(Authentication → Users), then add their shop and rates.
+Put `SUPABASE_URL` and the **service role key** (Dashboard → Project Settings → API) only in
+server-side env files (`apps/web/.env.local`, `apps/processor/.env`), never in browser or desktop code.
+
 ## Tests
 
 ```bash
