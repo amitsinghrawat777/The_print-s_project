@@ -97,7 +97,7 @@ Total (pay at counter) ........................... ₹52
                                 └──────────┬────────────┘             └──────────────────────┘
                                            │ DOCX/PPTX → PDF
                                     ┌──────▼──────┐
-                                    │ Gotenberg   │ (week 3)
+                                    │ Gotenberg   │         
                                     └─────────────┘
 ```
 
@@ -120,13 +120,14 @@ attachment, not downloading a file.
 - When an order is sent, the server builds a **print-ready PDF** for each file. It keeps only the
   selected pages, puts them in the chosen order, and splits mixed jobs into a
   **B&W part and a colour part**. The owner therefore never has to type page ranges.
-- The **Print** button calls Electron's `webContents.print()` with the customer's settings
-  already applied: `copies`, `color: true/false`, `duplexMode`, `pageSize`. The owner only
-  picks the printer (remembered after the first time) and clicks Print.
+- The **Print** button sends the print-ready PDF straight to the OS print spooler (bundled
+  SumatraPDF on Windows, CUPS `lp` on macOS) with the customer's settings already applied:
+  copies, B&W/colour, single/double sided, paper size. Text stays sharp and large documents print
+  fast. The owner only picks the printer (remembered after the first time) and clicks Print.
   A mixed order prints as two clicks: **"Print B&W part"** and **"Print colour part"**.
   If the shop has two printers, each part goes to the matching printer.
-- Phase 2 removes the click too, with silent automatic printing (SumatraPDF on Windows, `lp` on
-  macOS).
+- Phase 2 removes the click too: the same print engine runs automatically.
+- The full design is in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 
