@@ -1,0 +1,27 @@
+{
+  "name": "the-prints-project",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:web": "npm run dev -w @prints/web",
+    "dev:processor": "npm run dev -w @prints/processor",
+    "db:start": "supabase start -x imgproxy,edge-runtime,logflare,vector,supavisor",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status",
+    "services:up": "docker compose -f infra/docker-compose.yml up -d gotenberg",
+    "services:down": "docker compose -f infra/docker-compose.yml down",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "supabase": "^2.122.0",
+    "typescript": "^5.9.3"
+  }
+}
