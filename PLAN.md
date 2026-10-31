@@ -1,5 +1,8 @@
 # The Print's Project — Build Plan
 
+> **Status:** this is the long-term vision (Phase 2+). The first build target is the smaller
+> upload → preview → print MVP in [`MVP_PLAN.md`](./MVP_PLAN.md).
+
 > Scan → Upload → Pay → It prints. No queue, no pen drive, no WhatsApp, no cash.
 
 This document is the technical and product plan for taking the idea from an empty
