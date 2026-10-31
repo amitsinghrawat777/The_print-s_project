@@ -147,3 +147,15 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# --- The Print's Project ---
+.turbo/
+.next/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+supabase/.branches
+supabase/.temp
