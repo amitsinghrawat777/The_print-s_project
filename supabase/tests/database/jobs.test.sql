@@ -32,12 +32,17 @@ create function pg_temp.submit(p_job uuid) returns text language sql as $$
 $$;
 
 create temp table t (name text primary key, job uuid);
-grant all on t to authenticated;
+grant all on t to authenticated, service_role;
 insert into t values ('a', pg_temp.new_draft()), ('b', pg_temp.new_draft()), ('draft', pg_temp.new_draft());
 
--- submit_job: tokens, prices, options
+-- submit_job: tokens, prices, options. The first submits run as the API's
+-- service_role, before postgres runs the triggers: PL/pgSQL caches resolved
+-- names per session, which would otherwise hide missing privileges.
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
 select is(pg_temp.submit((select job from t where name = 'a')), 'A1', 'first order of the day gets A1');
 select is(pg_temp.submit((select job from t where name = 'b')), 'A2', 'second order gets A2');
+reset role;
 select is((select status from public.jobs where id = (select job from t where name = 'a')), 'building', 'submitted job is building');
 select is((select total_paise from public.jobs where id = (select job from t where name = 'a')), 1400, 'total is stored');
 select is((select page_sequence from public.job_files where job_id = (select job from t where name = 'a')), array[1,2,3], 'page sequence is stored');

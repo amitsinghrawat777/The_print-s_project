@@ -1,6 +1,6 @@
 -- Local development data. Applied by `supabase db reset`.
 -- Demo shop owner login: owner@demo.test / demo-password
--- Customer page: http://localhost:3000/s/demo-xerox
+-- Customer page: http://localhost:3030/s/demo-xerox
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,

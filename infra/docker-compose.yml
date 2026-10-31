@@ -1,0 +1,34 @@
+# Local services that Supabase doesn't provide.
+#   npm run services:up        → Gotenberg only (run the processor with `npm run dev:processor`)
+#   docker compose -f infra/docker-compose.yml --profile full up -d --build
+#                              → Gotenberg + processor in containers
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    command:
+      - gotenberg
+      - --api-timeout=120s
+      - --chromium-disable-routes=true
+      - --webhook-disable=true
+      - --log-level=warn
+    ports:
+      - "3100:3000"
+    restart: unless-stopped
+
+  processor:
+    profiles: ["full"]
+    build:
+      context: ..
+      dockerfile: apps/processor/Dockerfile
+    env_file: ../apps/processor/.env
+    environment:
+      GOTENBERG_URL: http://gotenberg:3000
+      # reach the Supabase CLI stack running on the host
+      SUPABASE_URL: http://host.docker.internal:54321
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "4000:4000"
+    depends_on:
+      - gotenberg
+    restart: unless-stopped

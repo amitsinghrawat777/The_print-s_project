@@ -136,8 +136,11 @@ as $$
   end;
 $$;
 
+-- security definer: callers have no USAGE on the private schema, so they
+-- couldn't call private.current_actor() themselves
 create function private.jobs_before_update() returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 declare

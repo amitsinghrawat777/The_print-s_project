@@ -18,10 +18,13 @@
     "services:up": "docker compose -f infra/docker-compose.yml up -d gotenberg",
     "services:down": "docker compose -f infra/docker-compose.yml down",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "smoke": "node scripts/smoke-test.mjs"
   },
   "devDependencies": {
     "supabase": "^2.122.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@supabase/supabase-js": "^2.118.0",
+    "pdf-lib": "^1.17.1"
   }
 }
