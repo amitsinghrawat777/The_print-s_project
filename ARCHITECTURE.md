@@ -44,7 +44,7 @@ Main components:
 | 1 | **Customer Web App** | Vercel (Next.js App Router) | Upload, page thumbnails, customization, live price, submit, status page |
 | 2 | **Public API** | Same Next.js app (`/api/*` route handlers) | The only door customers use. Creates jobs, hands out signed upload URLs, validates and prices orders, assigns tokens, rate limits |
 | 3 | **File Processor** | Container on Cloud Run or Fly.io (Node + Fastify) with a **Gotenberg** sidecar | Validates files, converts Office/images to PDF, counts pages, builds print-ready PDFs |
-| 4 | **Supabase** | Managed (region **ap-south-1 Mumbai**) | Postgres + Row Level Security, private file storage, Realtime change feed, owner Auth, `pg_cron` |
+| 4 | **Supabase** | Managed (region **ap-south-1 Mumbai**) | Postgres + Row Level Security, private file storage, Realtime change feed, owner Auth |
 | 5 | **Desktop App** | Shop PC (Electron + React + Vite) | Owner login, live queue, in-app preview, printing, rate card, QR poster, tray and notifications |
 | 6 | **Shared package** | Imported by 1, 2, 3, 5 | Pricing function, page-range parser, Zod schemas, status enums |
 
@@ -83,7 +83,7 @@ Main components:
 ├─ packages/
 │  └─ shared/                 # pricing.ts, pageRange.ts, schemas.ts (Zod), status.ts, types
 ├─ supabase/
-│  ├─ migrations/             # tables, RLS policies, functions, pg_cron schedules
+│  ├─ migrations/             # tables, RLS policies, functions
 │  └─ seed.sql                # demo shop + rates for local dev
 ├─ infra/
 │  └─ docker-compose.yml      # local: gotenberg + processor (Supabase via `supabase start`)
@@ -221,7 +221,8 @@ jobs/
 ```
 
 Bucket rules: max object 25 MB, allowed MIME types are PDF, JPEG, PNG, DOCX, PPTX, XLSX and DOC.
-A storage lifecycle backstop deletes anything older than 48 h.
+Files are removed by the processor's cleanup sweep (see `/cleanup` below); a job's files are
+only deleted once it is `expired`, and `jobs.purged_at` records when that happened.
 
 ---
 
@@ -265,7 +266,7 @@ with the new price, and the customer confirms again.
 |---|---|
 | `POST /process-file { fileId }` | Download original → check magic bytes (`file-type`) → if Office/image, convert with Gotenberg → open with `pdf-lib`: page count, reject if encrypted, more than 500 pages, or corrupt → save `pdf/{fileId}.pdf` → `status = ready` |
 | `POST /build-job { jobId }` | For each file: copy pages in `page_sequence` order into a new PDF; split into **B&W** and **colour** parts (or one part, depending on `mixed_color_mode`) → save `print/…` → job `new` |
-| `POST /cleanup` | Called by `pg_cron` every 15 min: delete storage for jobs `done` > 2 h or older than 24 h → `expired` |
+| `POST /cleanup` | Runs every 15 min on the processor's own timer (or from an external scheduler): `expire_jobs()` marks drafts idle 2 h, jobs `done` > 2 h and anything older than 24 h as `expired`, then deletes their files and sets `purged_at` |
 
 ---
 
@@ -417,7 +418,7 @@ flowchart TB
 | Conversion | Gotenberg runs with **no outbound network**, with a timeout per file; the processor is private (HMAC-signed requests) |
 | Owner data access | Supabase Auth (email OTP or password); RLS: `shops.owner_id = auth.uid()`, `jobs.shop_id ∈ my shops`; storage read policy limited to the `{my shop_id}/…` prefix; owners can't see other shops |
 | Secrets | Service-role key only in API and processor env vars; never shipped in the desktop app (which uses the anon key + owner JWT + RLS) |
-| Retention | Delete 2 h after `done`, 24 h maximum; 48 h bucket lifecycle backstop; `job_events` keeps metadata only (no file content) |
+| Retention | Delete 2 h after `done`, 24 h maximum (processor cleanup sweep, retried until `purged_at` is set); `job_events` keeps metadata only (no file content) |
 | Compliance | DPDP Act 2023: minimal data (first name only), clear notice on the upload page ("files are deleted after printing"), data stored in the India (Mumbai) region |
 | Desktop | Sandboxed renderer, signed auto-updates, private temp folder |
 

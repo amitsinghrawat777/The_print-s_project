@@ -1,0 +1,9 @@
+# Local services that Supabase doesn't provide. Start with:
+#   docker compose -f infra/docker-compose.yml up -d
+# (Supabase itself runs via `pnpm db:start`.)
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
