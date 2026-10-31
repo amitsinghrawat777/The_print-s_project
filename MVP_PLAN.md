@@ -16,16 +16,71 @@ once shops are using this every day.
 | Customer (web app on phone) | Shop owner (desktop app: Windows `.exe` + macOS `.dmg`) |
 |---|---|
 | Scan the shop's QR → the shop's upload page opens, no install, no login | Log in once; the app stays signed in |
-| Upload one or more files (PDF, JPG, PNG; DOCX/PPTX in week 3) | **New files appear instantly** with a sound and notification |
-| Enter a name and an optional note ("2 copies, colour, pages 1–5") | See the queue: token, customer name, files, page count, note, time |
-| Get a **token number** (e.g. `#A47`) to tell the owner | **Preview inside the app**: zoom and scroll pages, no file saved to disk |
-| See upload status: *Sent ✓* / *Printed ✓* | **Print** from the preview (system print dialog: printer, copies, B/W, range) |
-| | Mark a job *Done*; files are deleted automatically |
+| Upload one or more files (PDF, JPG, PNG, DOCX, PPTX) | **New jobs appear instantly** with a sound and notification |
+| **Customize the order** (see §1a): pages, sequence, B&W or colour, copies, sides | See the queue: token, customer name, files, **exact print settings**, **price**, time |
+| See the **price live** as they change settings, with a breakdown | **Preview inside the app**: zoom and scroll pages, no file saved to disk |
+| Enter a name and press **Send to shop** | **Print** with the customer's settings already filled in (see §2, "How printing works") |
+| Get a **token number** (e.g. `#A47`) and the **amount to pay at the counter** | Mark a job *Paid* and *Done*; files are deleted automatically |
+| See status: *Sent ✓* / *Printing* / *Ready ✓* | Set the shop's **rate card** (B&W / colour, single / double sided) |
 | | Show or print the shop's **QR code** from the app |
 
 ### Not in the MVP (later)
-Online payment, automatic printing without clicks, pricing, the convenience fee, owner
-earnings dashboard, several staff accounts per shop.
+Online payment (in the MVP the customer pays the shown price at the counter by UPI or cash),
+automatic printing without clicks, the convenience fee, owner earnings dashboard, several staff
+accounts per shop.
+
+---
+
+## 1a. Order customization and pricing (customer web app)
+
+### What the customer can set, for each file
+| Option | How it looks | Example |
+|---|---|---|
+| **Pages to print** | "All pages" or a custom range field, plus tap-to-select page thumbnails | `1-5, 8, 10-12` |
+| **Sequence** | Drag to **reorder files**; within a file, pages print in the order of the range typed (so `5-1` prints in reverse) | Front page first, then annexures |
+| **B&W or colour** | One toggle for the whole file, **or mixed**: choose which pages are colour | Pages `1, 4` colour, the rest B&W |
+| **Copies** | − / + stepper | 3 copies |
+| **Sides** | Single sided / double sided (only shown if the shop's printer can print both sides) | Double sided |
+| **Paper size** | A4 by default (A3 / Legal only if the shop turns them on) | A4 |
+
+Page thumbnails come from the real converted PDF. The customer sees exactly which pages they
+picked and what will print, and colour pages get a small colour badge.
+
+### How the price is calculated
+The shop owner sets a **rate card** in the desktop app, for example:
+
+| | Single sided | Double sided |
+|---|---|---|
+| B&W, per page | ₹2 | ₹3 per sheet |
+| Colour, per page | ₹10 | ₹18 per sheet |
+
+```
+for each file:
+   bw_pages     = selected pages that are B&W
+   colour_pages = selected pages that are colour
+   file_price   = (bw_pages × bw_rate + colour_pages × colour_rate) × copies
+                  (double sided: charged per sheet, using the double-sided rate)
+order_total = sum of file_price  (rounded to the nearest rupee)
+```
+
+The customer sees a **live breakdown** that updates on every change:
+```
+Resume.pdf      3 pages B&W × 2 copies .......... ₹12
+Project.docx    10 B&W + 2 colour × 1 copy ....... ₹40
+-------------------------------------------------------
+Total (pay at counter) ........................... ₹52
+```
+
+### Rules that keep the price honest
+- **The page count comes from the server, not from the customer.** Every upload (including
+  DOCX/PPTX) is converted to PDF before the customization screen opens, so the page count and
+  price are always right. This is why Office file conversion moves up to **week 1–2**.
+- **One shared pricing function** in `packages/shared` is used by the web app (live price),
+  the server (final price) and the desktop app (display). The server recalculates the price
+  when the order is sent, and **that price is final**. The browser's number is only a preview.
+- The rate card in force is **saved with the order**, so changing rates later never changes
+  the price of an order already sent.
+- All money is stored as whole **paise** (integers), never as decimals.
 
 ---
 
@@ -62,11 +117,16 @@ is left on the shop PC after the job is closed. To the owner it feels like openi
 attachment, not downloading a file.
 
 ### How printing works
-- The **Print** button renders the PDF in a hidden window and calls Electron's
-  `webContents.print()`. This opens the normal system print dialog, where the owner picks the
-  printer, copies, colour/B&W and page range, the same on Windows and macOS.
-- The customer's note (e.g. "2 copies, colour") is pre-filled where possible.
-- Phase 2 replaces this with silent automatic printing (SumatraPDF on Windows, `lp` on macOS).
+- When an order is sent, the server builds a **print-ready PDF** for each file. It keeps only the
+  selected pages, puts them in the chosen order, and splits mixed jobs into a
+  **B&W part and a colour part**. The owner therefore never has to type page ranges.
+- The **Print** button calls Electron's `webContents.print()` with the customer's settings
+  already applied: `copies`, `color: true/false`, `duplexMode`, `pageSize`. The owner only
+  picks the printer (remembered after the first time) and clicks Print.
+  A mixed order prints as two clicks: **"Print B&W part"** and **"Print colour part"**.
+  If the shop has two printers, each part goes to the matching printer.
+- Phase 2 removes the click too, with silent automatic printing (SumatraPDF on Windows, `lp` on
+  macOS).
 
 ---
 
@@ -78,16 +138,32 @@ shops (
   is_accepting bool default true, created_at timestamptz
 )
 
+shop_rates (
+  shop_id uuid -> shops, paper_size text default 'A4',
+  color_mode text check (color_mode in ('bw','color')),
+  sides text check (sides in ('single','double')),
+  price_paise int                                           -- per page (single) / per sheet (double)
+)
+
 jobs (
   id uuid pk, shop_id uuid -> shops, token text,            -- "A47", resets daily
   customer_name text, note text,
-  status text check (status in ('uploading','new','opened','printed','done','expired')),
+  status text check (status in ('draft','new','opened','printing','ready','done','expired')),
+  total_paise int,                                          -- final, calculated on the server
+  rates_snapshot jsonb,                                     -- rate card used for this order
+  paid_at_counter bool default false,
   created_at timestamptz, printed_at timestamptz
 )
 
 job_files (
-  id uuid pk, job_id uuid -> jobs, storage_path text, original_name text,
-  mime text, size_bytes int, page_count int, pdf_path text  -- converted copy for DOCX etc.
+  id uuid pk, job_id uuid -> jobs, position int,            -- file order (sequence)
+  storage_path text, original_name text, mime text, size_bytes int,
+  pdf_path text, page_count int,                            -- converted PDF + real page count
+  page_sequence int[],                                      -- e.g. {1,2,3,5,4}: what prints, in order
+  color_pages int[],                                        -- pages from page_sequence printed in colour
+  copies int default 1, sides text, paper_size text,
+  price_paise int,
+  bw_print_path text, color_print_path text                 -- print-ready PDFs built on submit
 )
 ```
 
@@ -121,13 +197,13 @@ whatever the status.
 
 ---
 
-## 5. Milestones (about 4–5 weeks for one developer)
+## 5. Milestones (about 5 weeks for one developer)
 
 | Week | Milestone | Done when… |
 |---|---|---|
-| 1 | **Foundations + upload** | Monorepo set up; Supabase project with schema and RLS; customer page `/s/{slug}` uploads a PDF/image with progress bar and shows a token |
-| 2 | **Desktop app core** | Electron app: owner login, realtime queue (new job appears within about 1 second with a sound), in-app PDF/image preview, Print button, mark Done |
-| 3 | **Office files + polish** | DOCX/PPTX/XLSX converted to PDF (Gotenberg) so the preview matches the printout; page counts; customer status page updates live to *Printed ✓* |
+| 1 | **Foundations + upload** | Monorepo set up; Supabase project with schema and RLS; customer page `/s/{slug}` uploads files with a progress bar; DOCX/PPTX converted to PDF (Gotenberg) with real page counts |
+| 2 | **Customize + price** | Thumbnails, page ranges and sequence, file reorder, B&W/colour/mixed, copies, sides; shared pricing function with unit tests; live price breakdown; server-side final price; token + "pay ₹X at counter" screen |
+| 3 | **Desktop app core** | Electron app: owner login, rate card editor, realtime queue (new job within about 1 second with a sound), in-app preview, print-ready B&W/colour PDFs, Print with settings pre-filled, mark Paid/Done; customer status updates live |
 | 4 | **Packaging + shop setup** | Signed `.exe` (NSIS installer) and `.dmg`; auto-update; shop onboarding (name → slug → QR poster PDF); "pause uploads" toggle; auto-cleanup job |
 | 5 | **Pilot** | Installed in 2–3 real shops; feedback fixed; basic analytics (jobs per day, time from upload to print) |
 
@@ -153,7 +229,8 @@ mixed-up files.
 ## 7. Path to Phase 2 (full vision)
 
 The MVP is set up so the following can be added without a rewrite (see [`PLAN.md`](./PLAN.md)):
-1. **Pricing + payment** (Razorpay UPI and split payouts): add a `price` step before upload completes.
+1. **Online payment** (Razorpay UPI and split payouts): the price is already calculated on the
+   server, so this adds a "Pay ₹X" step in place of "pay at counter".
 2. **Auto-print**: the desktop app already receives jobs in real time, so a setting
    "print automatically after payment" switches to silent printing.
 3. **Convenience fee** and owner earnings dashboard.
