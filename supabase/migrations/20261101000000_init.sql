@@ -24,7 +24,7 @@ create table public.shops (
   paper_sizes text[] not null default '{A4}'
     check (cardinality(paper_sizes) >= 1 and paper_sizes <@ array['A4', 'A3', 'Legal', 'Letter']),
   timezone text not null default 'Asia/Kolkata',
-  -- daily order tokens (A1…A99, B1…), see submit_job()
+  -- daily order tokens (#1, #2, …), see submit_job()
   token_seq integer not null default 0,
   token_seq_date date,
   created_at timestamptz not null default now()
@@ -291,8 +291,8 @@ begin
   v_today := (now() at time zone v_shop.timezone)::date;
   v_seq := case when v_shop.token_seq_date = v_today then v_shop.token_seq + 1 else 1 end;
   update public.shops s set token_seq = v_seq, token_seq_date = v_today where s.id = v_shop.id;
-  -- A1…A99, B1…B99, … Z99, then wraps
-  v_token := chr(65 + ((v_seq - 1) / 99) % 26) || (((v_seq - 1) % 99) + 1)::text;
+  -- plain numbers 1…999, then wraps. Not letters: "A4" would read as a paper size.
+  v_token := (((v_seq - 1) % 999) + 1)::text;
 
   update public.jobs j set
     status = 'building',

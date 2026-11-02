@@ -40,8 +40,8 @@ insert into t values ('a', pg_temp.new_draft()), ('b', pg_temp.new_draft()), ('d
 -- names per session, which would otherwise hide missing privileges.
 set local role service_role;
 set local request.jwt.claims = '{"role":"service_role"}';
-select is(pg_temp.submit((select job from t where name = 'a')), 'A1', 'first order of the day gets A1');
-select is(pg_temp.submit((select job from t where name = 'b')), 'A2', 'second order gets A2');
+select is(pg_temp.submit((select job from t where name = 'a')), '1', 'first order of the day gets token 1');
+select is(pg_temp.submit((select job from t where name = 'b')), '2', 'second order gets token 2');
 reset role;
 select is((select status from public.jobs where id = (select job from t where name = 'a')), 'building', 'submitted job is building');
 select is((select total_paise from public.jobs where id = (select job from t where name = 'a')), 1400, 'total is stored');
@@ -54,11 +54,11 @@ select throws_ok(
 
 update public.shops set token_seq_date = token_seq_date - 1 where id = '22222222-2222-4222-8222-222222222222';
 insert into t values ('c', pg_temp.new_draft());
-select is(pg_temp.submit((select job from t where name = 'c')), 'A1', 'tokens restart each day');
+select is(pg_temp.submit((select job from t where name = 'c')), '1', 'tokens restart each day');
 
-update public.shops set token_seq = 99 where id = '22222222-2222-4222-8222-222222222222';
+update public.shops set token_seq = 999 where id = '22222222-2222-4222-8222-222222222222';
 insert into t values ('d', pg_temp.new_draft());
-select is(pg_temp.submit((select job from t where name = 'd')), 'B1', 'after A99 comes B1');
+select is(pg_temp.submit((select job from t where name = 'd')), '1', 'after 999 the tokens wrap to 1');
 
 update public.shops set is_accepting = false where id = '22222222-2222-4222-8222-222222222222';
 select throws_ok(format('select pg_temp.submit(%L)', (select job from t where name = 'draft')), 'SHOP_PAUSED', 'paused shop refuses orders');

@@ -326,14 +326,12 @@ sequenceDiagram
     DB-->>R: UPDATE job A47 status=new
     R->>M: notify(sound + OS notification + tray badge)
     Note over R: Owner clicks job A47
-    R->>M: ipc: openJob(A47)
-    M->>DB: create signed URLs (owner JWT, RLS)
-    M->>ST: GET pdf + print PDFs → memory (ArrayBuffer)
-    M-->>R: bytes via IPC (never saved to Downloads)
+    R->>ST: download print PDFs (owner JWT, storage RLS) → memory
+    Note over R: bytes stay in memory (never saved to Downloads)
     Note over R: PDF.js viewer, pages tagged B&W/colour
     R->>DB: status=opened
     Note over R: Print dialog (app's own): printer pre-selected,<br/>copies/duplex/colour from the order
-    R->>M: ipc: print(part=bw, printer, options)
+    R->>M: ipc: print(pdf bytes, printer, copies/duplex/colour/paper)
     M->>M: write to app temp dir (0600)
     M->>OS: SumatraPDF -print-to / lp -d … -o …
     M->>M: delete temp file
