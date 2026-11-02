@@ -18,6 +18,24 @@ export function ago(iso: string | null, now = Date.now()) {
   return `${hours} h ${minutes % 60} min ago`;
 }
 
+/** "today at 6:00 am", "tomorrow at 6:00 am" or "on Monday at 6:00 am". */
+export function whenLabel(date: Date, now = new Date()) {
+  const time = clock.format(date);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (date.toDateString() === now.toDateString()) return `today at ${time}`;
+  if (date.toDateString() === tomorrow.toDateString()) return `tomorrow at ${time}`;
+  return `on ${date.toLocaleDateString('en-IN', { weekday: 'long' })} at ${time}`;
+}
+
+/** The next 6 am on this computer, which is when a pause ends (the database uses the shop's timezone). */
+export function nextMorning(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(6, 0, 0, 0);
+  if (d <= now) d.setDate(d.getDate() + 1);
+  return d;
+}
+
 export const STATUS_LABEL: Record<JobStatus, string> = {
   draft: 'Draft',
   building: 'Preparing…',
@@ -33,8 +51,8 @@ export const STATUS_LABEL: Record<JobStatus, string> = {
 export const STATUS_STYLE: Record<JobStatus, string> = {
   draft: 'bg-slate-100 text-slate-600',
   building: 'bg-slate-100 text-slate-600',
-  new: 'bg-blue-600 text-white',
-  opened: 'bg-blue-50 text-blue-700',
+  new: 'bg-accent text-white',
+  opened: 'bg-accent-soft text-accent ring-1 ring-accent-line',
   printing: 'bg-amber-100 text-amber-800',
   ready: 'bg-emerald-100 text-emerald-800',
   done: 'bg-slate-100 text-slate-500',

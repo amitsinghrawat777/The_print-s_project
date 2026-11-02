@@ -17,6 +17,7 @@ import {
 } from 'electron';
 import { IPC, type NewJobNotice, type PrintRequest } from '../ipc';
 import { appIcon, badgeDot, trayIcon } from './icon';
+import { cancelOAuth, prepareOAuth, runOAuth } from './oauth';
 import { cleanPrintTemp, defaultPrinterName, printPdf } from './printer';
 import { sessionStore } from './session';
 import { applyLoginItem, getSettings, updateSettings } from './settings';
@@ -198,6 +199,10 @@ function registerIpc() {
     const known = (await e.sender.getPrintersAsync()).map((p) => p.name);
     return printPdf(request, known);
   });
+
+  ipcMain.handle(IPC.oauthPrepare, (e) => (trusted(e), prepareOAuth()));
+  ipcMain.handle(IPC.oauthRun, (e, url) => (trusted(e), runOAuth(url, showWindow)));
+  ipcMain.on(IPC.oauthCancel, (e) => (trusted(e), cancelOAuth()));
 
   ipcMain.handle(IPC.settingsGet, (e) => (trusted(e), getSettings()));
   ipcMain.handle(IPC.settingsSet, (e, patch) => (trusted(e), updateSettings(patch)));

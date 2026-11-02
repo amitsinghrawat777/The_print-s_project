@@ -21,5 +21,8 @@ export const supabase = createClient(url || 'http://invalid.localhost', key || '
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
+    // Google sign-in: the browser returns a one-time code, traded for a session with a
+    // verifier that never leaves this computer
+    flowType: 'pkce',
   },
 });

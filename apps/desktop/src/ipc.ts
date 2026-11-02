@@ -12,6 +12,9 @@ export const IPC = {
   queueChanged: 'queue:changed',
   newJob: 'queue:new-job',
   openJob: 'queue:open-job',
+  oauthPrepare: 'oauth:prepare',
+  oauthRun: 'oauth:run',
+  oauthCancel: 'oauth:cancel',
 } as const;
 
 export interface PrinterInfo {
@@ -45,6 +48,9 @@ export interface DesktopSettings {
   playSound: boolean;
 }
 
+/** What came back from the browser after Google sign-in. */
+export type OAuthResult = { ok: true; code: string } | { ok: false; error: string };
+
 export interface NewJobNotice {
   jobId: string;
   token: string;
@@ -68,5 +74,10 @@ export interface PrintsBridge {
   newJob(notice: NewJobNotice): void;
   /** Called when the owner clicks a notification. Returns an unsubscribe function. */
   onOpenJob(callback: (jobId: string) => void): () => void;
+  /** Google sign-in: starts the one-time callback server, returns the redirect address. */
+  oauthPrepare(): Promise<string>;
+  /** Opens the sign-in page in the browser and waits for it to come back with a code. */
+  oauthRun(authorizeUrl: string): Promise<OAuthResult>;
+  oauthCancel(): void;
   platform: 'win32' | 'darwin' | 'linux';
 }

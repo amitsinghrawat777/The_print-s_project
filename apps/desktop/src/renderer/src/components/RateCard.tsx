@@ -116,7 +116,7 @@ export function RateCard({ shop }: { shop: Shop }) {
                 {columns.map((c) => (
                   <th key={c.label} className="pb-3 font-medium">
                     {c.label}
-                    <span className="block text-xs font-normal text-slate-400">{c.unit}</span>
+                    <span className="block text-xs font-normal text-slate-500">{c.unit}</span>
                   </th>
                 ))}
               </tr>
@@ -129,8 +129,8 @@ export function RateCard({ shop }: { shop: Shop }) {
                     const k = keyOf(paper, c.color, c.sides);
                     return (
                       <td key={k} className="py-3 pr-4">
-                        <label className="flex h-10 w-32 items-center rounded-lg border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
-                          <span className="pl-3 text-slate-400">₹</span>
+                        <label className="flex h-10 w-32 items-center rounded-lg border border-slate-300 bg-white focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-line">
+                          <span className="pl-3 text-slate-500">₹</span>
                           <input
                             inputMode="decimal"
                             aria-label={`${paper} ${c.label}`}

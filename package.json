@@ -12,6 +12,7 @@
     "dev:web": "npm run dev -w @prints/web",
     "dev:processor": "npm run dev -w @prints/processor",
     "dev:desktop": "npm run dev -w @prints/desktop",
+    "dev:site": "npm run dev -w @prints/site",
     "db:start": "supabase start -x imgproxy,edge-runtime,logflare,vector,supavisor",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
@@ -22,6 +23,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "smoke": "node scripts/smoke-test.mjs",
     "ui-check": "node scripts/ui-check.mjs",
+    "site-check": "node scripts/site-check.mjs",
+    "marketing-shots": "node scripts/marketing-shots.mjs",
     "desktop-check": "npm run build -w @prints/desktop && node scripts/desktop-check.mjs"
   },
   "devDependencies": {

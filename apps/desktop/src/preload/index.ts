@@ -22,6 +22,9 @@ const bridge: PrintsBridge = {
     ipcRenderer.on(IPC.openJob, listener);
     return () => ipcRenderer.removeListener(IPC.openJob, listener);
   },
+  oauthPrepare: () => ipcRenderer.invoke(IPC.oauthPrepare),
+  oauthRun: (url) => ipcRenderer.invoke(IPC.oauthRun, url),
+  oauthCancel: () => ipcRenderer.send(IPC.oauthCancel),
   platform: process.platform as PrintsBridge['platform'],
 };
 

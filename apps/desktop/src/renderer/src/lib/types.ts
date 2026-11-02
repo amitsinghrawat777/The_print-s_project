@@ -9,6 +9,8 @@ export interface Shop {
   duplex_available: boolean;
   mixed_color_mode: MixedColorMode;
   paper_sizes: PaperSize[];
+  /** When a paused shop starts taking orders again by itself (6 am the next morning). */
+  resume_at: string | null;
 }
 
 export interface JobFile {
@@ -41,7 +43,7 @@ export interface Job {
   job_files: JobFile[];
 }
 
-export const SHOP_COLUMNS = 'id, name, slug, address, is_accepting, duplex_available, mixed_color_mode, paper_sizes';
+export const SHOP_COLUMNS = 'id, name, slug, address, is_accepting, duplex_available, mixed_color_mode, paper_sizes, resume_at';
 
 export const JOB_COLUMNS =
   'id, token, status, customer_name, note, total_paise, paid_at_counter, created_at, submitted_at, printed_at, done_at, error, ' +

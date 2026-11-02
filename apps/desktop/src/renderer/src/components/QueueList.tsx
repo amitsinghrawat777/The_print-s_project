@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ago, formatPaise, jobSummary, STATUS_LABEL, STATUS_STYLE, timeOf } from '../lib/format';
+import { formatPaise, jobSummary, STATUS_LABEL, STATUS_STYLE, timeOf } from '../lib/format';
 import type { Job } from '../lib/types';
+
+/** Orders waiting longer than this get an amber "waiting" time. */
+const SLOW_MINUTES = 10;
 
 function useNow(intervalMs: number) {
   const [now, setNow] = useState(Date.now());
@@ -11,6 +14,29 @@ function useNow(intervalMs: number) {
   return now;
 }
 
+function minutesSince(iso: string | null, now: number) {
+  return iso ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000)) : 0;
+}
+
+function duration(minutes: number) {
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+/** The one time that matters for each kind of order. */
+function TimeLine({ job, now }: { job: Job; now: number }) {
+  if (job.status === 'done') return <span className="text-slate-500">Collected {timeOf(job.done_at)}</span>;
+  if (job.status === 'ready') return <span className="text-slate-500">Ready since {timeOf(job.printed_at)}</span>;
+  const waited = minutesSince(job.submitted_at, now);
+  const slow = waited >= SLOW_MINUTES && job.status !== 'building';
+  return (
+    <span className={slow ? 'font-medium text-amber-700' : 'text-slate-500'}>
+      {timeOf(job.submitted_at)} · {waited < 1 ? 'just now' : `waiting ${duration(waited)}`}
+    </span>
+  );
+}
+
 export function QueueList({ jobs, selectedId, onSelect }: { jobs: Job[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const now = useNow(30_000);
   const toPrint = jobs.filter((j) => ['building', 'new', 'opened', 'printing', 'failed'].includes(j.status));
@@ -18,61 +44,83 @@ export function QueueList({ jobs, selectedId, onSelect }: { jobs: Job[]; selecte
   const done = jobs.filter((j) => j.status === 'done').reverse();
   const [showDone, setShowDone] = useState(false);
 
-  const section = (title: string, list: Job[], empty?: string) => (
-    <div>
-      {title && (
-      <h3 className="sticky top-0 z-10 bg-slate-50/95 px-4 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase backdrop-blur">
-        {title} <span className="text-slate-400">· {list.length}</span>
-      </h3>
-      )}
-      {list.length === 0 && empty && <p className="px-4 pb-4 text-sm text-slate-400">{empty}</p>}
-      <ul className="space-y-1 px-2 pb-3">
-        {list.map((job) => {
-          const selectable = job.status !== 'building';
-          const selected = job.id === selectedId;
-          return (
-            <li key={job.id}>
-              <button
-                type="button"
-                disabled={!selectable}
-                onClick={() => onSelect(job.id)}
-                aria-current={selected}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
-                  selected ? 'bg-white shadow-sm ring-2 ring-blue-500' : 'hover:bg-white hover:shadow-sm'
-                } ${job.status === 'new' && !selected ? 'bg-blue-50 ring-1 ring-blue-200' : ''} disabled:cursor-default disabled:opacity-60`}
-              >
-                <span className="w-14 shrink-0 text-center text-2xl font-bold tabular-nums">#{job.token ?? '–'}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate font-medium">{job.customer_name || 'Customer'}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[job.status]}`}>{STATUS_LABEL[job.status]}</span>
-                  </span>
-                  <span className="block truncate text-sm text-slate-500">
-                    {job.job_files.length} file{job.job_files.length === 1 ? '' : 's'}
-                    {job.total_paise != null && ` · ${formatPaise(job.total_paise)}`}
-                    {job.paid_at_counter && ' · Paid'}
-                  </span>
-                  <span className="block text-xs text-slate-400" title={jobSummary(job)}>
-                    {timeOf(job.submitted_at)} · {ago(job.submitted_at, now)}
-                  </span>
+  const heading = (title: string, short: string, count: number) => (
+    <h3 className="sticky top-0 z-10 bg-slate-50/95 px-2 py-2 text-xs font-semibold tracking-wide text-slate-600 uppercase backdrop-blur lg:px-4">
+      <span className="hidden lg:inline">{title} · </span>
+      <span className="lg:hidden" title={title}>{short} </span>
+      {count}
+    </h3>
+  );
+
+  const list = (items: Job[]) => (
+    <ul className="space-y-1 px-2 pb-3">
+      {items.map((job) => {
+        const selected = job.id === selectedId;
+        const fresh = job.status === 'new';
+        return (
+          <li key={job.id}>
+            <button
+              type="button"
+              disabled={job.status === 'building'}
+              onClick={() => onSelect(job.id)}
+              aria-current={selected}
+              title={`#${job.token ?? '–'} ${jobSummary(job)}`}
+              className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent lg:px-3 ${
+                selected ? 'bg-white shadow-sm ring-2 ring-accent' : 'hover:bg-white hover:shadow-sm'
+              } disabled:cursor-default disabled:opacity-60`}
+            >
+              {/* new orders get a blue edge; the ring is reserved for the selected order */}
+              {fresh && <span className="absolute inset-y-2 left-0 w-1.5 rounded-r-full bg-accent" aria-hidden />}
+              <span className="w-full shrink-0 text-center text-2xl font-bold tabular-nums lg:w-14">
+                #{job.token ?? '–'}
+                {fresh && <span className="mt-1 block text-[11px] font-semibold tracking-wide text-accent uppercase lg:hidden">New</span>}
+              </span>
+              <span className="hidden min-w-0 flex-1 lg:block">
+                <span className="flex items-center gap-2">
+                  <span className="truncate font-medium">{job.customer_name || 'Customer'}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[job.status]}`}>{STATUS_LABEL[job.status]}</span>
                 </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+                <span className="block truncate text-sm text-slate-600">
+                  {job.job_files.length} file{job.job_files.length === 1 ? '' : 's'}
+                  {job.total_paise != null && ` · ${formatPaise(job.total_paise)}`}
+                  {job.paid_at_counter && ' · Paid'}
+                </span>
+                <span className="block text-xs">
+                  <TimeLine job={job} now={now} />
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 
   return (
     <nav aria-label="Orders" className="h-full overflow-y-auto">
-      {section('To print', toPrint, 'No orders waiting. New ones appear here with a sound.')}
-      {section('Ready for pickup', ready)}
       <div>
-        <button type="button" onClick={() => setShowDone((v) => !v)} className="w-full px-4 py-2 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase hover:text-slate-700">
-          {showDone ? '▾' : '▸'} Collected today <span className="text-slate-400">· {done.length}</span>
+        {heading('To print', 'Print', toPrint.length)}
+        {toPrint.length === 0 && (
+          <p className="hidden px-4 pb-4 text-sm text-slate-500 lg:block">No orders waiting. New ones appear here with a sound.</p>
+        )}
+        {list(toPrint)}
+      </div>
+      <div>
+        {heading('Ready for pickup', 'Ready', ready.length)}
+        {list(ready)}
+      </div>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowDone((v) => !v)}
+          aria-expanded={showDone}
+          className="w-full px-2 py-2 text-left text-xs font-semibold tracking-wide text-slate-600 uppercase hover:text-slate-900 lg:px-4"
+        >
+          {showDone ? '▾' : '▸'} <span className="hidden lg:inline">Collected today · </span>
+          <span className="lg:hidden">Done </span>
+          {done.length}
         </button>
-        {showDone && section('', done)}
+        {showDone && list(done)}
       </div>
     </nav>
   );

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Brand accent: black, to match the wordmark. Change it here and the whole app follows. */
+@theme {
+  --color-accent: #0a0a0a;
+  --color-accent-hover: #2a2a2a;
+  --color-accent-muted: #a1a1aa;
+  --color-accent-soft: #f4f4f5;
+  --color-accent-line: #d4d4d8;
+}
+
 :root {
   color-scheme: light;
 }

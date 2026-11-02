@@ -69,13 +69,14 @@ export function Settings({
         <div className="flex items-center justify-between py-2">
           <div>
             <p className="font-medium">Sound for new orders</p>
-            <button type="button" className="text-sm text-blue-700 hover:underline" onClick={playChime}>Play it</button>
+            <button type="button" className="text-sm font-medium text-accent underline underline-offset-2 hover:no-underline" onClick={playChime}>Play it</button>
           </div>
           <Toggle label="Sound for new orders" checked={settings.playSound} onChange={(v) => void patch({ playSound: v })} />
         </div>
       </Card>
 
       <ShopSettings shop={shop} onShop={onShop} />
+      <Account />
       <QrPoster shop={shop} />
     </div>
   );
@@ -188,6 +189,36 @@ function QrPoster({ shop }: { shop: Shop }) {
         <p className="text-xl">Upload your files, choose pages and colour, see the price.<br />No WhatsApp, no pen drive.</p>
         <p className="font-mono text-lg">{link}</p>
       </div>
+    </Card>
+  );
+}
+
+function Account() {
+  const [email, setEmail] = useState<string | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setEmail(data.session?.user.email ?? null);
+      setProvider((data.session?.user.app_metadata.provider as string | undefined) ?? null);
+    });
+  }, []);
+
+  return (
+    <Card title="Account">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="font-medium">Signed in as</p>
+          <p className="selectable text-sm text-slate-600" data-testid="account-email">
+            {email ?? '…'}
+            {provider === 'google' && ' (Google)'}
+          </p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => void supabase.auth.signOut()}>Sign out</Button>
+      </div>
+      <p className="mt-3 text-sm text-slate-600">
+        Your password and security are managed by Google. If staff use this computer, sign out of Google in the browser after signing in here.
+      </p>
     </Card>
   );
 }
