@@ -13,8 +13,9 @@ FROM node:22-slim
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/apps/processor/package.json ./
-RUN npm install --omit=dev --no-package-lock --ignore-scripts \
-  $(node -e "const d=require('./package.json').dependencies;console.log(Object.entries(d).filter(([n])=>!n.startsWith('@prints/')).map(([n,v])=>n+'@'+v).join(' '))")
+# @prints/* packages are bundled into dist, so drop them before installing the rest
+RUN node -e "const fs=require('fs');const p=require('./package.json');for(const n of Object.keys(p.dependencies))if(n.startsWith('@prints/'))delete p.dependencies[n];delete p.devDependencies;fs.writeFileSync('package.json',JSON.stringify(p,null,2))" \
+  && npm install --omit=dev --no-package-lock --ignore-scripts
 COPY --from=build /repo/apps/processor/dist ./dist
 USER node
 EXPOSE 4000

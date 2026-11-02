@@ -1,5 +1,6 @@
 import { crc32, deflateSync } from 'node:zlib';
 import { PDFDocument } from 'pdf-lib';
+import sharp from 'sharp';
 import { describe, expect, it, vi } from 'vitest';
 import { signedHeaders } from '@prints/shared';
 import { detectFileType, extractPages, imageToPdf, inspectPdf, RejectedFileError } from './pdf';
@@ -73,6 +74,16 @@ describe('imageToPdf', () => {
   it('turns the page for a wide image', async () => {
     const doc = await PDFDocument.load(await imageToPdf(png(600, 300), 'png'));
     expect(Math.round(doc.getPage(0).getSize().width)).toBe(842);
+  });
+
+  it('turns phone photos upright (EXIF orientation)', async () => {
+    // stored 1000x600 landscape, EXIF orientation 6 = rotate 90° so it displays portrait
+    const jpg = await sharp({ create: { width: 1000, height: 600, channels: 3, background: '#00f' } })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const page = (await PDFDocument.load(await imageToPdf(new Uint8Array(jpg), 'jpg'))).getPage(0);
+    expect(page.getHeight()).toBeGreaterThan(page.getWidth());
   });
 
   it('rejects broken images', async () => {

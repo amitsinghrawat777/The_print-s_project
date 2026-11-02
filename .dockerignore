@@ -1,0 +1,13 @@
+# Keeps local installs, build output and secrets out of Docker build contexts
+# (the processor image is built from the repo root).
+**/node_modules
+**/dist
+**/out
+**/.next
+**/.env
+**/.env.*
+!**/.env.example
+.git
+screenshots
+supabase/.temp
+apps/desktop/resources/bin

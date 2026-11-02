@@ -1,5 +1,6 @@
 import { fileTypeFromBuffer } from 'file-type';
 import { PDFDocument } from 'pdf-lib';
+import sharp from 'sharp';
 import {
   fileTypeFromExtension,
   MAX_PAGES_PER_FILE,
@@ -64,16 +65,29 @@ export async function inspectPdf(bytes: Uint8Array): Promise<{ pageCount: number
 // A4 in PDF points, with a small margin so printers don't clip the image.
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 18;
+// A4's long edge at 300 dpi; bigger photos are scaled down to keep print files small.
+const MAX_IMAGE_EDGE = 3508;
 
-/** Puts a JPG or PNG on one A4 page, turned landscape for wide images. */
+/**
+ * Puts a JPG or PNG on one A4 page, turned landscape for wide images. Phone
+ * photos are turned upright first (EXIF orientation).
+ */
 export async function imageToPdf(bytes: Uint8Array, ext: 'jpg' | 'jpeg' | 'png'): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  let image;
+  let upright: Buffer;
   try {
-    image = ext === 'png' ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+    const pipeline = sharp(bytes, { failOn: 'error' })
+      .rotate()
+      .resize({ width: MAX_IMAGE_EDGE, height: MAX_IMAGE_EDGE, fit: 'inside', withoutEnlargement: true });
+    // PNGs stay PNG to keep transparency; photos are flattened onto white paper
+    upright = ext === 'png'
+      ? await pipeline.png().toBuffer()
+      : await pipeline.flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
   } catch {
     throw new RejectedFileError("This image looks damaged and can't be opened.");
   }
+
+  const doc = await PDFDocument.create();
+  const image = ext === 'png' ? await doc.embedPng(upright) : await doc.embedJpg(upright);
   const landscape = image.width > image.height;
   const [pageWidth, pageHeight] = landscape ? [A4[1], A4[0]] : A4;
   const scale = Math.min(

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import logo from '../assets/logo.png';
+import logo from '../assets/wordmark-black.png';
 import { supabase } from '../lib/supabase';
 import { Button, ErrorNote, Spinner } from './ui';
 
@@ -22,7 +22,7 @@ export function Login() {
     <main className="flex h-full items-center justify-center p-6">
       <form onSubmit={submit} className="w-full max-w-sm space-y-5 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
         <div>
-          <img src={logo} alt="The Print's Project" className="h-auto w-32" />
+          <img src={logo} alt="The Print's Project" className="h-auto w-40" />
           <h1 className="mt-5 text-2xl font-semibold">Shop login</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in once. The app stays signed in on this computer.</p>
         </div>
